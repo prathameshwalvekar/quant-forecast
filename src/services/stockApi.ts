@@ -1,9 +1,12 @@
 import axios from 'axios';
 
-// Free stock data API - Using Alpha Vantage (you'll need a free API key)
-// Alternative: Yahoo Finance API (no key required but less reliable)
-const API_KEY = 'demo'; // Replace with actual API key for production
-const BASE_URL = 'https://www.alphavantage.co/query';
+// Using Finnhub.io - Free tier provides 60 API calls per minute
+// Sign up at https://finnhub.io/register to get your free API key
+const FINNHUB_API_KEY = 'demo'; // Replace with your actual API key for production
+const FINNHUB_BASE_URL = 'https://finnhub.io/api/v1';
+
+// Alternative Yahoo Finance proxy (no API key needed but less reliable)
+const YAHOO_PROXY_URL = 'https://query1.finance.yahoo.com/v8/finance/chart';
 
 export interface StockQuote {
   symbol: string;
@@ -20,7 +23,82 @@ export interface TimeSeriesData {
   value: number;
 }
 
-// Fallback demo data for when API is not available
+// Company names mapping for display
+const COMPANY_NAMES: { [key: string]: string } = {
+  'AAPL': 'Apple Inc.',
+  'GOOGL': 'Alphabet Inc.',
+  'MSFT': 'Microsoft Corporation',
+  'TSLA': 'Tesla Inc.',
+  'AMZN': 'Amazon.com Inc.',
+  'NVDA': 'NVIDIA Corporation',
+  'META': 'Meta Platforms Inc.',
+  'NFLX': 'Netflix Inc.',
+  'AMD': 'Advanced Micro Devices',
+  'INTC': 'Intel Corporation',
+};
+
+// Fetch real-time stock quote using Finnhub
+const fetchFromFinnhub = async (symbol: string): Promise<StockQuote> => {
+  const response = await axios.get(`${FINNHUB_BASE_URL}/quote`, {
+    params: {
+      symbol: symbol,
+      token: FINNHUB_API_KEY,
+    },
+    timeout: 5000,
+  });
+
+  const data = response.data;
+  if (!data.c || data.c === 0) {
+    throw new Error('No data available from Finnhub');
+  }
+
+  const price = data.c; // Current price
+  const change = data.d; // Change
+  const changePercent = data.dp; // Change percent
+
+  return {
+    symbol,
+    name: COMPANY_NAMES[symbol] || `${symbol} Inc.`,
+    price,
+    change,
+    changePercent,
+    volume: 0, // Finnhub basic plan doesn't include volume in quote endpoint
+  };
+};
+
+// Fallback: Fetch from Yahoo Finance proxy
+const fetchFromYahoo = async (symbol: string): Promise<StockQuote> => {
+  const response = await axios.get(`${YAHOO_PROXY_URL}/${symbol}`, {
+    timeout: 5000,
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    },
+  });
+
+  const data = response.data;
+  const result = data?.chart?.result?.[0];
+  
+  if (!result || !result.meta) {
+    throw new Error('No data available from Yahoo Finance');
+  }
+
+  const meta = result.meta;
+  const price = meta.regularMarketPrice || meta.previousClose || 0;
+  const previousClose = meta.previousClose || price;
+  const change = price - previousClose;
+  const changePercent = (change / previousClose) * 100;
+
+  return {
+    symbol,
+    name: COMPANY_NAMES[symbol] || meta.longName || `${symbol} Inc.`,
+    price,
+    change,
+    changePercent,
+    volume: meta.regularMarketVolume || 0,
+  };
+};
+
+// Generate fallback demo data
 const generateDemoData = (symbol: string): { quote: StockQuote; timeSeries: TimeSeriesData[] } => {
   const basePrice = Math.random() * 200 + 50;
   const change = (Math.random() - 0.5) * 10;
@@ -40,7 +118,7 @@ const generateDemoData = (symbol: string): { quote: StockQuote; timeSeries: Time
   return {
     quote: {
       symbol,
-      name: `${symbol} Inc.`,
+      name: COMPANY_NAMES[symbol] || `${symbol} Inc.`,
       price: basePrice,
       change,
       changePercent,
@@ -53,69 +131,54 @@ const generateDemoData = (symbol: string): { quote: StockQuote; timeSeries: Time
 
 export const fetchStockQuote = async (symbol: string): Promise<StockQuote> => {
   try {
-    // Try Alpha Vantage API
-    const response = await axios.get(BASE_URL, {
-      params: {
-        function: 'GLOBAL_QUOTE',
-        symbol,
-        apikey: API_KEY,
-      },
-      timeout: 5000,
-    });
-
-    if (response.data['Error Message'] || response.data['Note']) {
-      throw new Error('API limit reached or invalid symbol');
-    }
-
-    const quote = response.data['Global Quote'];
-    if (!quote || Object.keys(quote).length === 0) {
-      throw new Error('No data available');
-    }
-
-    return {
-      symbol: quote['01. symbol'],
-      name: `${symbol} Inc.`, // API doesn't provide company name in this endpoint
-      price: parseFloat(quote['05. price']),
-      change: parseFloat(quote['09. change']),
-      changePercent: parseFloat(quote['10. change percent'].replace('%', '')),
-      volume: parseInt(quote['06. volume']),
-    };
+    // Try Finnhub first (more reliable)
+    console.log(`Fetching real-time data for ${symbol} from Finnhub...`);
+    return await fetchFromFinnhub(symbol);
   } catch (error) {
-    console.warn('API fetch failed, using demo data:', error);
-    return generateDemoData(symbol).quote;
+    console.warn('Finnhub failed, trying Yahoo Finance...', error);
+    try {
+      return await fetchFromYahoo(symbol);
+    } catch (yahooError) {
+      console.warn('Yahoo Finance failed, using demo data...', yahooError);
+      return generateDemoData(symbol).quote;
+    }
   }
 };
 
 export const fetchTimeSeriesData = async (symbol: string): Promise<TimeSeriesData[]> => {
   try {
-    const response = await axios.get(BASE_URL, {
+    // For time series, we'll use Yahoo Finance as it's more accessible
+    console.log(`Fetching historical data for ${symbol}...`);
+    const response = await axios.get(`${YAHOO_PROXY_URL}/${symbol}`, {
       params: {
-        function: 'TIME_SERIES_DAILY',
-        symbol,
-        apikey: API_KEY,
-        outputsize: 'compact',
+        range: '1mo',
+        interval: '1d',
       },
-      timeout: 5000,
+      timeout: 8000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
     });
 
-    if (response.data['Error Message'] || response.data['Note']) {
-      throw new Error('API limit reached or invalid symbol');
+    const data = response.data;
+    const result = data?.chart?.result?.[0];
+    
+    if (!result || !result.timestamp || !result.indicators?.quote?.[0]?.close) {
+      throw new Error('No historical data available');
     }
 
-    const timeSeries = response.data['Time Series (Daily)'];
-    if (!timeSeries) {
-      throw new Error('No time series data available');
-    }
+    const timestamps = result.timestamp;
+    const closes = result.indicators.quote[0].close;
 
-    return Object.entries(timeSeries)
-      .slice(0, 30)
-      .map(([date, data]: [string, any]) => ({
-        time: date,
-        value: parseFloat(data['4. close']),
+    return timestamps
+      .map((timestamp: number, index: number) => ({
+        time: new Date(timestamp * 1000).toISOString().split('T')[0],
+        value: closes[index] || 0,
       }))
-      .reverse();
+      .filter((item: TimeSeriesData) => item.value > 0)
+      .slice(-30); // Last 30 days
   } catch (error) {
-    console.warn('Time series API fetch failed, using demo data:', error);
+    console.warn('Historical data fetch failed, using demo data:', error);
     return generateDemoData(symbol).timeSeries;
   }
 };

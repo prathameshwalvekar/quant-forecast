@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Search, TrendingUp } from 'lucide-react';
+import { Search, TrendingUp, ExternalLink, Info } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface StockSearchProps {
   onStockSelect: (symbol: string) => void;
@@ -57,6 +58,21 @@ export const StockSearch: React.FC<StockSearchProps> = ({ onStockSelect, isLoadi
             {isLoading ? 'Loading...' : 'Analyze'}
           </Button>
         </form>
+
+        <Alert className="mb-4 bg-info/10 border-info/20">
+          <Info className="h-4 w-4 text-info" />
+          <AlertDescription className="text-sm">
+            Using real-time data from Finnhub.io and Yahoo Finance APIs. 
+            <a 
+              href="https://finnhub.io/register" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-primary hover:underline inline-flex items-center gap-1 ml-1"
+            >
+              Get free API key for more data <ExternalLink className="w-3 h-3" />
+            </a>
+          </AlertDescription>
+        </Alert>
 
         <div>
           <h3 className="text-sm font-medium text-muted-foreground mb-3">Popular Stocks</h3>

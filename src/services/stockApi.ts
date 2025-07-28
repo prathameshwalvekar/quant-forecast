@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Using Finnhub.io - Free tier provides 60 API calls per minute
 // Sign up at https://finnhub.io/register to get your free API key
-const FINNHUB_API_KEY = 'demo'; // Replace with your actual API key for production
+const FINNHUB_API_KEY = 'd23qachr01qv4g01pofgd23qachr01qv4g01pog0'; // Replace with your actual API key for production
 const FINNHUB_BASE_URL = 'https://finnhub.io/api/v1';
 
 // Alternative Yahoo Finance proxy (no API key needed but less reliable)

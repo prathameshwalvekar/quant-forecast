@@ -59,21 +59,6 @@ export const StockSearch: React.FC<StockSearchProps> = ({ onStockSelect, isLoadi
           </Button>
         </form>
 
-        <Alert className="mb-4 bg-info/10 border-info/20">
-          <Info className="h-4 w-4 text-info" />
-          <AlertDescription className="text-sm">
-            Using real-time data from Finnhub.io and Yahoo Finance APIs. 
-            <a 
-              href="https://finnhub.io/register" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-primary hover:underline inline-flex items-center gap-1 ml-1"
-            >
-              Get free API key for more data <ExternalLink className="w-3 h-3" />
-            </a>
-          </AlertDescription>
-        </Alert>
-
         <div>
           <h3 className="text-sm font-medium text-muted-foreground mb-3">Popular Stocks</h3>
           <div className="flex flex-wrap gap-2">

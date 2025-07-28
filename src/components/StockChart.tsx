@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { createChart, ColorType, IChartApi } from 'lightweight-charts';
+import { createChart, ColorType, IChartApi, AreaSeries, LineSeries } from 'lightweight-charts';
 import { Card } from '@/components/ui/card';
 
 interface StockChartProps {
@@ -50,7 +50,7 @@ export const StockChart: React.FC<StockChartProps> = ({ data, predictions, title
     chartRef.current = chart;
 
     // Main data series (area chart)
-    const mainSeries = (chart as any).addAreaSeries({
+    const mainSeries = chart.addSeries(AreaSeries, {
       lineColor: 'hsl(217 100% 50%)',
       topColor: 'hsl(217 100% 50% / 0.4)',
       bottomColor: 'hsl(217 100% 50% / 0.0)',
@@ -60,7 +60,7 @@ export const StockChart: React.FC<StockChartProps> = ({ data, predictions, title
 
     // Predictions series (line chart)
     if (predictions && predictions.length > 0) {
-      const predictionSeries = (chart as any).addLineSeries({
+      const predictionSeries = chart.addSeries(LineSeries, {
         color: 'hsl(45 100% 50%)',
         lineWidth: 2,
         lineStyle: 2, // dashed
